@@ -1,0 +1,10 @@
+bin/
+dist/
+build/
+
+.DS_Store
+
+.env
+.env.*
+
+*.log

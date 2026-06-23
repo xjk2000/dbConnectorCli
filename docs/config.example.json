@@ -1,0 +1,26 @@
+{
+  "defaults": {
+    "output": "json",
+    "timeoutMs": 5000,
+    "maxRows": 100,
+    "allowWrite": false
+  },
+  "profiles": [
+    {
+      "name": "local-mysql",
+      "type": "mysql",
+      "dsnEnv": "LOCAL_MYSQL_DSN",
+      "readonly": false,
+      "maxRows": 200,
+      "timeoutMs": 8000
+    },
+    {
+      "name": "local-redis",
+      "type": "redis",
+      "addr": "127.0.0.1:6379",
+      "db": 0,
+      "readonly": false,
+      "timeoutMs": 3000
+    }
+  ]
+}
