@@ -77,6 +77,13 @@ Build the binary:
 go build -o bin/dbc ./cmd/dbc
 ```
 
+Show help and version:
+
+```bash
+./bin/dbc -help
+./bin/dbc -version
+```
+
 Check the active config path:
 
 ```bash

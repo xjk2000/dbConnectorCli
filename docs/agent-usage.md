@@ -28,10 +28,30 @@ Use this executable when available:
 ./bin/dbc
 ```
 
+Show help:
+
+```bash
+./bin/dbc -help
+```
+
+Show version:
+
+```bash
+./bin/dbc -version
+```
+
 If `./bin/dbc` does not exist, build it:
 
 ```bash
 go build -o bin/dbc ./cmd/dbc
+```
+
+Build with version metadata:
+
+```bash
+go build \
+  -ldflags "-X dbconnector/internal/version.Version=v0.1.0 -X dbconnector/internal/version.Commit=$(git rev-parse --short HEAD) -X dbconnector/internal/version.BuiltAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  -o bin/dbc ./cmd/dbc
 ```
 
 Fallback during development:

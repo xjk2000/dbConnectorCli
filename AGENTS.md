@@ -9,6 +9,8 @@ Primary agent-facing documentation:
 Quick rules:
 
 - Prefer `./bin/dbc` when it exists.
+- Use `./bin/dbc -help` to inspect commands.
+- Use `./bin/dbc -version` to inspect build metadata.
 - All command output is JSON.
 - Parse `ok` before reading result fields.
 - Treat `ok: false` as a command failure even if the process output is valid JSON.

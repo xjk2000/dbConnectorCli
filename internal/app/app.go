@@ -12,6 +12,7 @@ import (
 	"dbconnector/internal/protocol"
 	redisclient "dbconnector/internal/redis"
 	"dbconnector/internal/safety"
+	"dbconnector/internal/version"
 )
 
 func Run(args []string, stdout, stderr io.Writer) int {
@@ -29,9 +30,17 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runMySQL(args[1:], stdout, start)
 	case "redis":
 		return runRedis(args[1:], stdout, start)
-	case "help", "-h", "--help":
+	case "help", "-h", "--help", "-help":
 		return writeSuccess(stdout, "system", "", "help", start, map[string]any{
-			"usage": usage(),
+			"usage":    usage(),
+			"commands": commandList(),
+		})
+	case "version", "-version", "--version":
+		info := version.Current()
+		return writeSuccess(stdout, "system", "", "version", start, map[string]any{
+			"version": info.Version,
+			"commit":  info.Commit,
+			"builtAt": info.BuiltAt,
 		})
 	default:
 		return writeFailure(stdout, "system", "", protocol.NewError("USAGE_ERROR", "unknown command: "+args[0], false), start)
@@ -468,6 +477,8 @@ func elapsedMs(start time.Time) int64 {
 
 func usage() string {
 	return strings.Join([]string{
+		"dbc -help",
+		"dbc -version",
 		"dbc config path",
 		"dbc profile list",
 		"dbc profile test --profile <name>",
@@ -475,4 +486,29 @@ func usage() string {
 		"dbc mysql count --profile <name> --database <db> --table <table>",
 		"dbc redis get --profile <name> --key <key>",
 	}, "\n")
+}
+
+func commandList() []string {
+	return []string{
+		"config path",
+		"profile list",
+		"profile test",
+		"mysql databases",
+		"mysql tables",
+		"mysql table",
+		"mysql query",
+		"mysql count",
+		"mysql explain",
+		"mysql exec",
+		"redis ping",
+		"redis info",
+		"redis scan",
+		"redis count",
+		"redis get",
+		"redis hgetall",
+		"redis ttl",
+		"redis type",
+		"redis set",
+		"redis del",
+	}
 }
