@@ -32,7 +32,10 @@ Show help:
 
 ```bash
 ./bin/dbc -help
+./bin/dbc --help
 ```
+
+Help output is JSON. Read `usage` for a grouped human-readable command reference, and `commandTree` for a machine-friendly hierarchy of every supported command.
 
 Show version:
 

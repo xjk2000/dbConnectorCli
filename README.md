@@ -81,8 +81,11 @@ Show help and version:
 
 ```bash
 ./bin/dbc -help
+./bin/dbc --help
 ./bin/dbc -version
 ```
+
+`--help` returns JSON with a hierarchical `commandTree` and a complete grouped `usage` string.
 
 Check the active config path:
 

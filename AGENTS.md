@@ -9,7 +9,7 @@ Primary agent-facing documentation:
 Quick rules:
 
 - Prefer `./bin/dbc` when it exists.
-- Use `./bin/dbc -help` to inspect commands.
+- Use `./bin/dbc --help` to inspect every command. The response includes grouped `usage` text and a hierarchical `commandTree`.
 - Use `./bin/dbc -version` to inspect build metadata.
 - All command output is JSON.
 - Parse `ok` before reading result fields.

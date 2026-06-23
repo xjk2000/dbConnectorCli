@@ -32,8 +32,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runRedis(args[1:], stdout, start)
 	case "help", "-h", "--help", "-help":
 		return writeSuccess(stdout, "system", "", "help", start, map[string]any{
-			"usage":    usage(),
-			"commands": commandList(),
+			"usage":       usage(),
+			"commands":    commandList(),
+			"commandTree": commandTree(),
 		})
 	case "version", "-version", "--version":
 		info := version.Current()
@@ -477,14 +478,53 @@ func elapsedMs(start time.Time) int64 {
 
 func usage() string {
 	return strings.Join([]string{
-		"dbc -help",
-		"dbc -version",
-		"dbc config path",
-		"dbc profile list",
-		"dbc profile test --profile <name>",
-		"dbc mysql query --profile <name> --sql <sql>",
-		"dbc mysql count --profile <name> --database <db> --table <table>",
-		"dbc redis get --profile <name> --key <key>",
+		"dbc",
+		"",
+		"Global",
+		"  dbc -help",
+		"  dbc --help",
+		"  dbc -h",
+		"  dbc help",
+		"  dbc -version",
+		"  dbc --version",
+		"  dbc version",
+		"",
+		"Config",
+		"  dbc config path",
+		"",
+		"Profile",
+		"  dbc profile list",
+		"  dbc profile test --profile <name> [--timeout-ms <ms>]",
+		"",
+		"MySQL",
+		"  dbc mysql databases --profile <name> [--timeout-ms <ms>]",
+		"  dbc mysql tables --profile <name> --database <db> [--limit <n>] [--timeout-ms <ms>]",
+		"  dbc mysql table --profile <name> --database <db> --table <table> [--timeout-ms <ms>]",
+		"  dbc mysql query --profile <name> --sql <select|show|describe|explain> [--params <json-array>] [--limit <n>] [--timeout-ms <ms>]",
+		"  dbc mysql count --profile <name> --database <db> --table <table> [--timeout-ms <ms>]",
+		"  dbc mysql count --profile <name> --sql <select> [--params <json-array>] [--timeout-ms <ms>]",
+		"  dbc mysql explain --profile <name> --sql <select> [--params <json-array>] [--limit <n>] [--timeout-ms <ms>]",
+		"  dbc mysql exec --profile <name> --sql <insert|update|delete|...> [--params <json-array>] --write [--timeout-ms <ms>]",
+		"",
+		"Redis",
+		"  dbc redis ping --profile <name> [--db <n>] [--timeout-ms <ms>]",
+		"  dbc redis info --profile <name> [--db <n>] [--timeout-ms <ms>]",
+		"  dbc redis scan --profile <name> [--db <n>] [--pattern <glob>] [--limit <n>] [--timeout-ms <ms>]",
+		"  dbc redis count --profile <name> [--db <n>] [--pattern <glob>] [--limit <n>] [--timeout-ms <ms>]",
+		"  dbc redis get --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+		"  dbc redis hgetall --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+		"  dbc redis ttl --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+		"  dbc redis type --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+		"  dbc redis set --profile <name> [--db <n>] --key <key> --value <value> [--ttl <seconds>] --write [--timeout-ms <ms>]",
+		"  dbc redis del --profile <name> [--db <n>] --key <key> --write [--timeout-ms <ms>]",
+		"",
+		"Common Flags",
+		"  --profile <name>       Profile name from config",
+		"  --timeout-ms <ms>      Per-command timeout override",
+		"  --limit <n>            Maximum returned rows, tables, or keys",
+		"  --write                Required for write operations",
+		"  --params <json-array>  SQL parameter array, e.g. '[123]'",
+		"  --db <n>               Redis logical DB override",
 	}, "\n")
 }
 
@@ -510,5 +550,48 @@ func commandList() []string {
 		"redis type",
 		"redis set",
 		"redis del",
+	}
+}
+
+func commandTree() map[string][]string {
+	return map[string][]string{
+		"global": {
+			"dbc -help",
+			"dbc --help",
+			"dbc -h",
+			"dbc help",
+			"dbc -version",
+			"dbc --version",
+			"dbc version",
+		},
+		"config": {
+			"dbc config path",
+		},
+		"profile": {
+			"dbc profile list",
+			"dbc profile test --profile <name> [--timeout-ms <ms>]",
+		},
+		"mysql": {
+			"dbc mysql databases --profile <name> [--timeout-ms <ms>]",
+			"dbc mysql tables --profile <name> --database <db> [--limit <n>] [--timeout-ms <ms>]",
+			"dbc mysql table --profile <name> --database <db> --table <table> [--timeout-ms <ms>]",
+			"dbc mysql query --profile <name> --sql <select|show|describe|explain> [--params <json-array>] [--limit <n>] [--timeout-ms <ms>]",
+			"dbc mysql count --profile <name> --database <db> --table <table> [--timeout-ms <ms>]",
+			"dbc mysql count --profile <name> --sql <select> [--params <json-array>] [--timeout-ms <ms>]",
+			"dbc mysql explain --profile <name> --sql <select> [--params <json-array>] [--limit <n>] [--timeout-ms <ms>]",
+			"dbc mysql exec --profile <name> --sql <insert|update|delete|...> [--params <json-array>] --write [--timeout-ms <ms>]",
+		},
+		"redis": {
+			"dbc redis ping --profile <name> [--db <n>] [--timeout-ms <ms>]",
+			"dbc redis info --profile <name> [--db <n>] [--timeout-ms <ms>]",
+			"dbc redis scan --profile <name> [--db <n>] [--pattern <glob>] [--limit <n>] [--timeout-ms <ms>]",
+			"dbc redis count --profile <name> [--db <n>] [--pattern <glob>] [--limit <n>] [--timeout-ms <ms>]",
+			"dbc redis get --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+			"dbc redis hgetall --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+			"dbc redis ttl --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+			"dbc redis type --profile <name> [--db <n>] --key <key> [--timeout-ms <ms>]",
+			"dbc redis set --profile <name> [--db <n>] --key <key> --value <value> [--ttl <seconds>] --write [--timeout-ms <ms>]",
+			"dbc redis del --profile <name> [--db <n>] --key <key> --write [--timeout-ms <ms>]",
+		},
 	}
 }
