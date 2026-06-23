@@ -7,6 +7,7 @@ func TestParseFlags(t *testing.T) {
 		"--profile", "local",
 		"--timeout-ms=3000",
 		"--limit", "50",
+		"--db", "0",
 		"--write",
 		"extra",
 	})
@@ -24,6 +25,9 @@ func TestParseFlags(t *testing.T) {
 	}
 	if !flags.Write {
 		t.Fatal("write flag was not set")
+	}
+	if flags.DB == nil || *flags.DB != 0 {
+		t.Fatalf("db = %#v", flags.DB)
 	}
 	if len(remaining) != 1 || remaining[0] != "extra" {
 		t.Fatalf("remaining = %#v", remaining)

@@ -154,6 +154,7 @@ func runMySQL(args []string, stdout io.Writer, start time.Time) int {
 			"database":  flags.Database,
 			"tables":    tables,
 			"count":     len(tables),
+			"limit":     limit,
 			"truncated": truncated,
 		})
 	case "table":
@@ -178,7 +179,39 @@ func runMySQL(args []string, stdout io.Writer, start time.Time) int {
 			"columns":   result.Columns,
 			"rows":      result.Rows,
 			"rowCount":  result.RowCount,
+			"limit":     limit,
 			"truncated": result.Truncated,
+		})
+	case "count":
+		if strings.TrimSpace(flags.SQL) != "" && (strings.TrimSpace(flags.Database) != "" || strings.TrimSpace(flags.Table) != "") {
+			return writeFailure(stdout, "mysql", profile.Name, protocol.NewError("USAGE_ERROR", "mysql count accepts either --sql or --database with --table, not both", false), start)
+		}
+		if strings.TrimSpace(flags.SQL) != "" {
+			if errResp := safety.CheckMySQLRead(flags.SQL); errResp != nil {
+				return writeFailure(stdout, "mysql", profile.Name, errResp, start)
+			}
+			params, errResp := mysqlclient.ParseParams(flags.Params)
+			if errResp != nil {
+				return writeFailure(stdout, "mysql", profile.Name, errResp, start)
+			}
+			result, errResp := mysqlclient.CountQuery(ctx, *profile, flags.SQL, params)
+			if errResp != nil {
+				return writeFailure(stdout, "mysql", profile.Name, errResp, start)
+			}
+			return writeSuccess(stdout, "mysql", profile.Name, "mysql_count", start, map[string]any{
+				"mode":  "query",
+				"count": result.Count,
+			})
+		}
+		result, errResp := mysqlclient.CountTable(ctx, *profile, flags.Database, flags.Table)
+		if errResp != nil {
+			return writeFailure(stdout, "mysql", profile.Name, errResp, start)
+		}
+		return writeSuccess(stdout, "mysql", profile.Name, "mysql_count", start, map[string]any{
+			"mode":     "table",
+			"database": flags.Database,
+			"table":    flags.Table,
+			"count":    result.Count,
 		})
 	case "explain":
 		if strings.TrimSpace(flags.SQL) == "" {
@@ -203,6 +236,7 @@ func runMySQL(args []string, stdout io.Writer, start time.Time) int {
 			"columns":   result.Columns,
 			"rows":      result.Rows,
 			"rowCount":  result.RowCount,
+			"limit":     limit,
 			"truncated": result.Truncated,
 		})
 	case "exec":
@@ -241,68 +275,94 @@ func runRedis(args []string, stdout io.Writer, start time.Time) int {
 
 	timeoutMs := effectiveTimeoutMs(cfg, profile, flags.TimeoutMs)
 	limit := mysqlclient.EffectiveLimit(cfg.Defaults.MaxRows, profile.MaxRows, flags.Limit)
+	redisProfile := *profile
+	if flags.DB != nil {
+		redisProfile.DB = flags.DB
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	switch command {
 	case "ping":
-		pong, errResp := redisclient.Ping(ctx, *profile)
+		pong, errResp := redisclient.Ping(ctx, redisProfile)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
-		return writeSuccess(stdout, "redis", profile.Name, "redis_ping", start, map[string]any{"pong": pong})
+		return writeSuccess(stdout, "redis", profile.Name, "redis_ping", start, map[string]any{
+			"db":   redisDB(redisProfile),
+			"pong": pong,
+		})
 	case "info":
-		info, errResp := redisclient.Info(ctx, *profile)
+		info, errResp := redisclient.Info(ctx, redisProfile)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
-		return writeSuccess(stdout, "redis", profile.Name, "redis_info", start, map[string]any{"info": info})
+		return writeSuccess(stdout, "redis", profile.Name, "redis_info", start, map[string]any{
+			"db":   redisDB(redisProfile),
+			"info": info,
+		})
 	case "scan":
-		keys, truncated, errResp := redisclient.Scan(ctx, *profile, flags.Pattern, limit)
+		keys, truncated, errResp := redisclient.Scan(ctx, redisProfile, flags.Pattern, limit)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_scan", start, map[string]any{
+			"db":        redisDB(redisProfile),
 			"pattern":   effectivePattern(flags.Pattern),
 			"keys":      keys,
 			"count":     len(keys),
 			"truncated": truncated,
 		})
+	case "count":
+		count, truncated, errResp := redisclient.Count(ctx, redisProfile, flags.Pattern, flags.Limit)
+		if errResp != nil {
+			return writeFailure(stdout, "redis", profile.Name, errResp, start)
+		}
+		return writeSuccess(stdout, "redis", profile.Name, "redis_count", start, map[string]any{
+			"db":        redisDB(redisProfile),
+			"pattern":   effectivePattern(flags.Pattern),
+			"count":     count,
+			"truncated": truncated,
+		})
 	case "get":
-		value, exists, errResp := redisclient.Get(ctx, *profile, flags.Key)
+		value, exists, errResp := redisclient.Get(ctx, redisProfile, flags.Key)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_get", start, map[string]any{
+			"db":     redisDB(redisProfile),
 			"key":    flags.Key,
 			"exists": exists,
 			"value":  value,
 		})
 	case "hgetall":
-		value, errResp := redisclient.HGetAll(ctx, *profile, flags.Key)
+		value, errResp := redisclient.HGetAll(ctx, redisProfile, flags.Key)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_hgetall", start, map[string]any{
+			"db":    redisDB(redisProfile),
 			"key":   flags.Key,
 			"value": value,
 			"count": len(value),
 		})
 	case "ttl":
-		ttl, errResp := redisclient.TTL(ctx, *profile, flags.Key)
+		ttl, errResp := redisclient.TTL(ctx, redisProfile, flags.Key)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_ttl", start, map[string]any{
+			"db":         redisDB(redisProfile),
 			"key":        flags.Key,
 			"ttlSeconds": ttl,
 		})
 	case "type":
-		value, errResp := redisclient.Type(ctx, *profile, flags.Key)
+		value, errResp := redisclient.Type(ctx, redisProfile, flags.Key)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_type", start, map[string]any{
+			"db":        redisDB(redisProfile),
 			"key":       flags.Key,
 			"redisType": value,
 		})
@@ -310,10 +370,11 @@ func runRedis(args []string, stdout io.Writer, start time.Time) int {
 		if errResp := safety.CheckWriteAllowed(cfg, profile, flags.Write); errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
-		if errResp := redisclient.Set(ctx, *profile, flags.Key, flags.Value, flags.TTL); errResp != nil {
+		if errResp := redisclient.Set(ctx, redisProfile, flags.Key, flags.Value, flags.TTL); errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_set", start, map[string]any{
+			"db":  redisDB(redisProfile),
 			"key": flags.Key,
 			"ttl": flags.TTL,
 		})
@@ -321,17 +382,25 @@ func runRedis(args []string, stdout io.Writer, start time.Time) int {
 		if errResp := safety.CheckWriteAllowed(cfg, profile, flags.Write); errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
-		deleted, errResp := redisclient.Del(ctx, *profile, flags.Key)
+		deleted, errResp := redisclient.Del(ctx, redisProfile, flags.Key)
 		if errResp != nil {
 			return writeFailure(stdout, "redis", profile.Name, errResp, start)
 		}
 		return writeSuccess(stdout, "redis", profile.Name, "redis_del", start, map[string]any{
+			"db":      redisDB(redisProfile),
 			"key":     flags.Key,
 			"deleted": deleted,
 		})
 	default:
 		return writeFailure(stdout, "redis", profile.Name, protocol.NewError("USAGE_ERROR", "unknown redis command: "+command, false), start)
 	}
+}
+
+func redisDB(profile config.Profile) int {
+	if profile.DB == nil {
+		return 0
+	}
+	return *profile.DB
 }
 
 func loadCommandProfile(args []string, expectedType string) (cli.Flags, *config.Config, *config.Profile, *protocol.Error) {
@@ -403,6 +472,7 @@ func usage() string {
 		"dbc profile list",
 		"dbc profile test --profile <name>",
 		"dbc mysql query --profile <name> --sql <sql>",
+		"dbc mysql count --profile <name> --database <db> --table <table>",
 		"dbc redis get --profile <name> --key <key>",
 	}, "\n")
 }

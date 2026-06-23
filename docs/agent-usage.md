@@ -214,6 +214,18 @@ Explain a query:
 ./bin/dbc mysql explain --profile <mysql-profile> --sql "select * from users where id = 123"
 ```
 
+Count rows in a table without returning rows:
+
+```bash
+./bin/dbc mysql count --profile <mysql-profile> --database <database-name> --table <table-name>
+```
+
+Count rows returned by a read-only query without returning rows:
+
+```bash
+./bin/dbc mysql count --profile <mysql-profile> --sql "select * from users where status = ?" --params '["active"]'
+```
+
 Run a write command only when explicitly requested:
 
 ```bash
@@ -265,6 +277,18 @@ Scan keys:
 
 ```bash
 ./bin/dbc redis scan --profile <redis-profile> --pattern "prefix*" --limit 1000
+```
+
+Count keys without returning key names:
+
+```bash
+./bin/dbc redis count --profile <redis-profile> --pattern "prefix*"
+```
+
+Override the Redis logical DB for a single command:
+
+```bash
+./bin/dbc redis count --profile <redis-profile> --db 1 --pattern "prefix*"
 ```
 
 Get a string key:
@@ -326,13 +350,29 @@ Count tables in a MySQL database:
 
 Read the `count` field. If `truncated` is `true`, rerun with a larger `--limit`.
 
+Count rows in a MySQL table:
+
+```bash
+./bin/dbc mysql count --profile <mysql-profile> --database <database-name> --table <table-name>
+```
+
+Read the `count` field. Prefer this command over `select count(*) ...` because it returns a stable JSON shape.
+
+Count rows produced by a read-only MySQL query:
+
+```bash
+./bin/dbc mysql count --profile <mysql-profile> --sql "select * from users where status = ?" --params '["active"]'
+```
+
+This wraps the read query as a subquery. If the SQL contains `LIMIT`, the count reflects the limited query result.
+
 Count Redis keys matching a prefix:
 
 ```bash
-./bin/dbc redis scan --profile <redis-profile> --pattern "prefix*" --limit 1000000
+./bin/dbc redis count --profile <redis-profile> --pattern "prefix*"
 ```
 
-Read the `count` field. If `truncated` is `true`, rerun with a larger `--limit` or explain that the result is truncated.
+Read the `count` field. This command does not return key names, so it is safer for large keyspaces. If the user wants sample keys, use `redis scan` with a small `--limit`.
 
 Find Redis DBs with data:
 
@@ -385,4 +425,3 @@ If this repo is used on the current machine, the following profiles may exist:
 - `cactus-next-redis`: Redis profile using DB 0 by default.
 
 Agents should still run `./bin/dbc profile list` instead of assuming these profiles always exist.
-

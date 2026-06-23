@@ -17,4 +17,5 @@ Quick rules:
 - Write commands require `--write` and may still be blocked by config.
 - Never print or expose DSN, password, token, or secret values.
 - Use `./bin/dbc profile list` to discover available profiles.
-
+- Use `mysql count` instead of `mysql query` when only a row count is needed.
+- Use `redis count` instead of `redis scan` when only a key count is needed.

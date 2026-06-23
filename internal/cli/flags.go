@@ -21,6 +21,7 @@ type Flags struct {
 	Value     string
 	Field     string
 	TTL       int
+	DB        *int
 }
 
 func ParseFlags(args []string) (Flags, []string, *protocol.Error) {
@@ -152,6 +153,22 @@ func ParseFlags(args []string) (Flags, []string, *protocol.Error) {
 				return flags, nil, protocol.NewError("USAGE_ERROR", "--ttl must be a non-negative integer", false)
 			}
 			flags.TTL = ttl
+		case arg == "--db":
+			value, ok := nextValue(args, &i, arg)
+			if !ok {
+				return flags, nil, protocol.NewError("USAGE_ERROR", "missing value for --db", false)
+			}
+			db, err := strconv.Atoi(value)
+			if err != nil || db < 0 {
+				return flags, nil, protocol.NewError("USAGE_ERROR", "--db must be a non-negative integer", false)
+			}
+			flags.DB = &db
+		case strings.HasPrefix(arg, "--db="):
+			db, err := strconv.Atoi(strings.TrimPrefix(arg, "--db="))
+			if err != nil || db < 0 {
+				return flags, nil, protocol.NewError("USAGE_ERROR", "--db must be a non-negative integer", false)
+			}
+			flags.DB = &db
 		default:
 			remaining = append(remaining, arg)
 		}

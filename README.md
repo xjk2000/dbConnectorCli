@@ -13,8 +13,8 @@
 - 标准 JSON 成功和错误输出
 - MySQL / Redis 连接测试
 - 写操作权限模型
-- MySQL：`databases`、`tables`、`table`、`query`、`explain`、`exec`
-- Redis：`ping`、`info`、`scan`、`get`、`hgetall`、`ttl`、`type`、`set`、`del`
+- MySQL：`databases`、`tables`、`table`、`query`、`count`、`explain`、`exec`
+- Redis：`ping`、`info`、`scan`、`count`、`get`、`hgetall`、`ttl`、`type`、`set`、`del`
 - 示例配置文件
 
 待实现：
@@ -47,10 +47,28 @@ MySQL 只读查询：
 DBCONNECTOR_CONFIG=docs/config.example.json go run ./cmd/dbc mysql query --profile local-mysql --sql "select 1"
 ```
 
+MySQL 精确统计表行数：
+
+```bash
+bin/dbc mysql count --profile cactus-staging-mysql --database tars_staging --table ticket
+```
+
+MySQL 统计只读查询结果数量：
+
+```bash
+bin/dbc mysql count --profile cactus-staging-mysql --sql "select * from ticket where status = ? " --params '["open"]'
+```
+
 Redis 读取：
 
 ```bash
 DBCONNECTOR_CONFIG=docs/config.example.json go run ./cmd/dbc redis get --profile local-redis --key "user:1"
+```
+
+Redis 统计指定 DB 中匹配前缀的 key 数：
+
+```bash
+bin/dbc redis count --profile cactus-next-redis --db 0 --pattern "intelli*"
 ```
 
 ## 配置

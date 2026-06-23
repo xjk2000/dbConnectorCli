@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -27,6 +28,10 @@ type QueryResult struct {
 type ExecResult struct {
 	RowsAffected int64 `json:"rowsAffected"`
 	LastInsertID int64 `json:"lastInsertId,omitempty"`
+}
+
+type CountResult struct {
+	Count int64 `json:"count"`
 }
 
 func Databases(ctx context.Context, profile config.Profile) ([]string, *protocol.Error) {
@@ -129,6 +134,47 @@ func Query(ctx context.Context, profile config.Profile, sqlText string, params [
 	}
 	defer db.Close()
 	return QueryRaw(ctx, db, sqlText, params, limit)
+}
+
+func CountTable(ctx context.Context, profile config.Profile, database, table string) (*CountResult, *protocol.Error) {
+	if strings.TrimSpace(database) == "" {
+		return nil, protocol.NewError("USAGE_ERROR", "missing required --database", false)
+	}
+	if strings.TrimSpace(table) == "" {
+		return nil, protocol.NewError("USAGE_ERROR", "missing required --table", false)
+	}
+
+	db, errResp := openDB(profile)
+	if errResp != nil {
+		return nil, errResp
+	}
+	defer db.Close()
+
+	query := fmt.Sprintf("SELECT COUNT(*) AS count FROM %s.%s", quoteIdentifier(database), quoteIdentifier(table))
+	return countRaw(ctx, db, query, nil)
+}
+
+func CountQuery(ctx context.Context, profile config.Profile, sqlText string, params []any) (*CountResult, *protocol.Error) {
+	if strings.TrimSpace(sqlText) == "" {
+		return nil, protocol.NewError("USAGE_ERROR", "missing required --sql", false)
+	}
+
+	db, errResp := openDB(profile)
+	if errResp != nil {
+		return nil, errResp
+	}
+	defer db.Close()
+
+	query := "SELECT COUNT(*) AS count FROM (" + trimTrailingSemicolon(sqlText) + ") AS dbc_count_query"
+	return countRaw(ctx, db, query, params)
+}
+
+func countRaw(ctx context.Context, db *sql.DB, sqlText string, params []any) (*CountResult, *protocol.Error) {
+	var count int64
+	if err := db.QueryRowContext(ctx, sqlText, params...).Scan(&count); err != nil {
+		return nil, driverError(ctx, "mysql count failed", err)
+	}
+	return &CountResult{Count: count}, nil
 }
 
 func QueryRaw(ctx context.Context, db *sql.DB, sqlText string, params []any, limit int) (*QueryResult, *protocol.Error) {
@@ -271,6 +317,18 @@ func normalizeValue(value any) any {
 	default:
 		return v
 	}
+}
+
+func quoteIdentifier(identifier string) string {
+	return "`" + strings.ReplaceAll(identifier, "`", "``") + "`"
+}
+
+func trimTrailingSemicolon(sqlText string) string {
+	trimmed := strings.TrimSpace(sqlText)
+	for strings.HasSuffix(trimmed, ";") {
+		trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, ";"))
+	}
+	return trimmed
 }
 
 func driverError(ctx context.Context, message string, err error) *protocol.Error {

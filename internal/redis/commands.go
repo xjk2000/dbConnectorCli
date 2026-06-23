@@ -76,6 +76,36 @@ func Scan(ctx context.Context, profile config.Profile, pattern string, limit int
 	}
 }
 
+func Count(ctx context.Context, profile config.Profile, pattern string, limit int) (int, bool, *protocol.Error) {
+	client, errResp := newClient(profile)
+	if errResp != nil {
+		return 0, false, errResp
+	}
+	defer client.Close()
+
+	if strings.TrimSpace(pattern) == "" {
+		pattern = "*"
+	}
+	countHint := int64(1000)
+
+	cursor := uint64(0)
+	total := 0
+	for {
+		batch, nextCursor, err := client.Scan(ctx, cursor, pattern, countHint).Result()
+		if err != nil {
+			return 0, false, driverError(ctx, "redis count failed", err)
+		}
+		total += len(batch)
+		if limit > 0 && total >= limit {
+			return limit, true, nil
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			return total, false, nil
+		}
+	}
+}
+
 func Get(ctx context.Context, profile config.Profile, key string) (any, bool, *protocol.Error) {
 	if strings.TrimSpace(key) == "" {
 		return nil, false, protocol.NewError("USAGE_ERROR", "missing required --key", false)
